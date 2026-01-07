@@ -21,12 +21,12 @@ Flutter 기반 만화책 뷰어 앱. 상세 스펙은 `comic_reader_spec_ko.md` 
 
 ## 남은 단계
 
-### 2단계: 라이브러리 & UI 다듬기
-- [ ] 썸네일 생성 및 캐싱
-- [ ] 리스트 뷰 옵션
-- [ ] 정렬 기능
-- [ ] 로딩/빈 상태 UI 개선
-- [ ] 스켈레톤/쉬머 효과
+### 2단계: 라이브러리 & UI 다듬기 (완료)
+- [x] 리스트 뷰 옵션 (그리드/리스트 전환)
+- [x] 정렬 기능 (제목, 추가일, 크기 - 오름차순/내림차순)
+- [x] 로딩/빈 상태 UI 개선
+- [x] 스켈레톤/쉬머 효과
+- [ ] 썸네일 생성 및 캐싱 (자동 커버 추출은 3단계에서 개선 예정)
 
 ### 3단계: WebDAV 연동
 - [ ] 서버 설정 CRUD
@@ -67,17 +67,27 @@ lib/
 │       └── local_file_source.dart
 ├── providers/
 │   ├── library_provider.dart
+│   ├── preferences_provider.dart    # NEW: 뷰 모드/정렬 설정
 │   ├── reader_provider.dart
 │   └── reading_progress_provider.dart
 └── ui/
     ├── screens/
     │   ├── home/
     │   │   ├── home_screen.dart
-    │   │   └── widgets/continue_reading_section.dart
+    │   │   └── widgets/
+    │   │       ├── comic_list_item.dart        # NEW: 리스트 뷰 아이템
+    │   │       ├── continue_reading_section.dart
+    │   │       ├── empty_library_state.dart    # NEW: 빈 상태 UI
+    │   │       └── library_header.dart         # NEW: 헤더 (정렬/뷰 토글)
     │   └── reader/
     │       ├── reader_screen.dart
     │       └── widgets/
     │           ├── page_view_reader.dart
     │           └── reader_controls.dart
+    ├── widgets/shimmer/                        # NEW: 쉬머 위젯
+    │   ├── library_shimmer.dart
+    │   ├── shimmer_continue_reading.dart
+    │   ├── shimmer_grid_item.dart
+    │   └── shimmer_list_item.dart
     └── theme/app_theme.dart
 ```

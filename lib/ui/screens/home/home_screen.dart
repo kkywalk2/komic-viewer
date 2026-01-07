@@ -7,8 +7,14 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/comic_book.dart';
 import '../../../providers/library_provider.dart';
+import '../../../providers/preferences_provider.dart';
 import '../../../providers/reading_progress_provider.dart';
+import '../../widgets/shimmer/library_shimmer.dart';
+import '../../widgets/shimmer/shimmer_continue_reading.dart';
+import 'widgets/comic_list_item.dart';
 import 'widgets/continue_reading_section.dart';
+import 'widgets/empty_library_state.dart';
+import 'widgets/library_header.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final libraryState = ref.watch(libraryNotifierProvider);
     final continueReadingState = ref.watch(continueReadingNotifierProvider);
+    final viewMode = ref.watch(libraryViewModeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -48,62 +55,48 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
               loading: () => const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
+                child: ShimmerContinueReading(),
               ),
-              error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+              error: (_, _) =>
+                  const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
 
             // Library Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  '라이브러리',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
+            const SliverToBoxAdapter(
+              child: LibraryHeader(),
             ),
 
-            // Library Grid
+            // Library Grid or List
             libraryState.when(
               data: (comics) {
                 if (comics.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.library_books_outlined,
-                            size: 64,
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '아직 만화가 없습니다',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '+를 눌러 파일을 추가하세요',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.outline,
-                                ),
-                          ),
-                        ],
-                      ),
+                  return const SliverFillRemaining(
+                    child: EmptyLibraryState(),
+                  );
+                }
+
+                if (viewMode == LibraryViewMode.list) {
+                  return SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final comic = comics[index];
+                        return ComicListItem(
+                          comic: comic,
+                          onTap: () => context.push('/reader', extra: comic),
+                          onLongPress: () =>
+                              _showContextMenu(context, ref, comic),
+                        );
+                      },
+                      childCount: comics.length,
                     ),
                   );
                 }
+
                 return SliverPadding(
                   padding: const EdgeInsets.all(16),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 3,
                       childAspectRatio: 0.65,
                       crossAxisSpacing: 12,
@@ -119,9 +112,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 );
               },
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => LibraryShimmer(viewMode: viewMode),
               error: (error, _) => SliverFillRemaining(
                 child: Center(
                   child: Column(
@@ -147,13 +138,62 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final book = await ref.read(libraryNotifierProvider.notifier).importComic();
+          final book =
+              await ref.read(libraryNotifierProvider.notifier).importComic();
           if (book != null && context.mounted) {
             context.push('/reader', extra: book);
           }
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context, WidgetRef ref, ComicBook comic) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('삭제'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(context, ref, comic);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, ComicBook comic) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('삭제'),
+          content: Text('"${comic.title}"을(를) 삭제하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ref.read(libraryNotifierProvider.notifier).deleteComic(comic);
+              },
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -186,7 +226,7 @@ class _ComicGridItem extends ConsumerWidget {
                   ? Image.file(
                       File(comic.coverPath!),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholder(context),
+                      errorBuilder: (_, _, _) => _buildPlaceholder(context),
                     )
                   : _buildPlaceholder(context),
             ),

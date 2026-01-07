@@ -13,4 +13,19 @@ class AppConstants {
   static const int thumbnailMaxHeight = 300;
 
   static const int maxRecentBooks = 10;
+
+  // Preference keys
+  static const String prefViewMode = 'library_view_mode';
+  static const String prefSortOption = 'library_sort_option';
+
+  // Shimmer configuration
+  static const int shimmerGridItemCount = 9;
+  static const int shimmerListItemCount = 6;
+  static const int shimmerContinueReadingCount = 4;
+
+  // WebDAV configuration
+  static const int connectionTimeoutSeconds = 30;
+  static const int downloadTimeoutSeconds = 300;
+  static const int maxConcurrentDownloads = 1;
+  static const int maxDownloadCacheMB = 512;
 }

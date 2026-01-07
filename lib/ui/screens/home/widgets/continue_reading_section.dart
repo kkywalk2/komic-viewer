@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/utils/hash_utils.dart';
 import '../../../../data/models/comic_book.dart';
 import '../../../../data/models/reading_progress.dart';
 
@@ -93,7 +92,7 @@ class _ContinueReadingItem extends StatelessWidget {
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
-                            errorBuilder: (_, __, ___) => _buildPlaceholder(context),
+                            errorBuilder: (_, _, _) => _buildPlaceholder(context),
                           )
                         : _buildPlaceholder(context),
                   ),
