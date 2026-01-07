@@ -17,6 +17,8 @@ class AppConstants {
   // Preference keys
   static const String prefViewMode = 'library_view_mode';
   static const String prefSortOption = 'library_sort_option';
+  static const String prefReadingDirection = 'reading_direction';
+  static const String prefKeepScreenOn = 'keep_screen_on';
 
   // Shimmer configuration
   static const int shimmerGridItemCount = 9;

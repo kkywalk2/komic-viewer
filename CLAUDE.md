@@ -19,14 +19,12 @@ Flutter 기반 만화책 뷰어 앱. 상세 스펙은 `comic_reader_spec_ko.md` 
 
 **주의:** `flutter pub get` 실행 필요
 
-## 남은 단계
-
 ### 2단계: 라이브러리 & UI 다듬기 (완료)
 - [x] 리스트 뷰 옵션 (그리드/리스트 전환)
 - [x] 정렬 기능 (제목, 추가일, 크기 - 오름차순/내림차순)
 - [x] 로딩/빈 상태 UI 개선
 - [x] 스켈레톤/쉬머 효과
-- [ ] 썸네일 생성 및 캐싱 (자동 커버 추출은 3단계에서 개선 예정)
+- [x] 썸네일 생성 및 캐싱
 
 ### 3단계: WebDAV 연동 (완료)
 - [x] 서버 설정 CRUD
@@ -35,11 +33,18 @@ Flutter 기반 만화책 뷰어 앱. 상세 스펙은 `comic_reader_spec_ko.md` 
 - [x] 디렉토리 브라우저 화면
 - [x] 파일 다운로드 및 캐싱
 
-### 4단계: 설정 & 다듬기
-- [ ] 설정 화면
-- [ ] 읽기 방향 옵션
-- [ ] 캐시 관리
-- [ ] 앱 아이콘/스플래시
+### 4단계: 설정 & 다듬기 (완료)
+- [x] 설정 화면
+- [x] 읽기 방향 옵션
+- [x] 캐시 관리
+- [ ] 앱 아이콘/스플래시 (선택)
+
+## 향후 개선 (MVP 이후)
+- [ ] CBR/RAR 지원
+- [ ] 세로 스크롤 읽기 모드
+- [ ] 라이브러리 검색
+- [ ] 진행 클라우드 동기화
+- [ ] 태블릿 레이아웃 (양면 보기)
 
 ## 현재 파일 구조
 ```
@@ -76,12 +81,14 @@ lib/
 │           └── webdav_source.dart
 ├── services/
 │   ├── download_manager.dart
-│   └── secure_storage_service.dart
+│   ├── secure_storage_service.dart
+│   └── thumbnail_service.dart
 ├── providers/
 │   ├── library_provider.dart
 │   ├── preferences_provider.dart
 │   ├── reader_provider.dart
 │   ├── reading_progress_provider.dart
+│   ├── thumbnail_provider.dart
 │   └── webdav_provider.dart
 └── ui/
     ├── screens/
@@ -97,6 +104,8 @@ lib/
     │   │   └── widgets/
     │   │       ├── page_view_reader.dart
     │   │       └── reader_controls.dart
+    │   ├── settings/
+    │   │   └── settings_screen.dart
     │   └── webdav/
     │       ├── browser_screen.dart
     │       ├── server_form_screen.dart

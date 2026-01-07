@@ -9,6 +9,7 @@ import '../../../data/models/comic_book.dart';
 import '../../../providers/library_provider.dart';
 import '../../../providers/preferences_provider.dart';
 import '../../../providers/reading_progress_provider.dart';
+import '../../../providers/thumbnail_provider.dart';
 import '../../widgets/shimmer/library_shimmer.dart';
 import '../../widgets/shimmer/shimmer_continue_reading.dart';
 import 'widgets/comic_list_item.dart';
@@ -36,9 +37,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Navigate to settings
-            },
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -210,6 +209,8 @@ class _ComicGridItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final thumbnailAsync = ref.watch(thumbnailProvider(comic));
+
     return GestureDetector(
       onTap: () {
         context.push('/reader', extra: comic);
@@ -227,13 +228,22 @@ class _ComicGridItem extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               clipBehavior: Clip.antiAlias,
-              child: comic.coverPath != null
-                  ? Image.file(
-                      File(comic.coverPath!),
+              child: thumbnailAsync.when(
+                data: (thumbnailPath) {
+                  if (thumbnailPath != null) {
+                    return Image.file(
+                      File(thumbnailPath),
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _buildPlaceholder(context),
-                    )
-                  : _buildPlaceholder(context),
+                    );
+                  }
+                  return _buildPlaceholder(context);
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                error: (_, _) => _buildPlaceholder(context),
+              ),
             ),
           ),
           const SizedBox(height: 8),

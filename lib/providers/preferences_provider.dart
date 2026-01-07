@@ -14,6 +14,11 @@ enum SortOption {
   sizeAsc,
 }
 
+enum ReadingDirection {
+  leftToRight,
+  rightToLeft,
+}
+
 extension SortOptionExtension on SortOption {
   String get displayName {
     switch (this) {
@@ -29,6 +34,17 @@ extension SortOptionExtension on SortOption {
         return '크기 (큰순)';
       case SortOption.sizeAsc:
         return '크기 (작은순)';
+    }
+  }
+}
+
+extension ReadingDirectionExtension on ReadingDirection {
+  String get displayName {
+    switch (this) {
+      case ReadingDirection.leftToRight:
+        return '왼쪽 → 오른쪽';
+      case ReadingDirection.rightToLeft:
+        return '오른쪽 → 왼쪽 (만화)';
     }
   }
 }
@@ -49,6 +65,26 @@ class LibraryPreferences {
     return LibraryPreferences(
       viewMode: viewMode ?? this.viewMode,
       sortOption: sortOption ?? this.sortOption,
+    );
+  }
+}
+
+class ReaderPreferences {
+  final ReadingDirection direction;
+  final bool keepScreenOn;
+
+  const ReaderPreferences({
+    this.direction = ReadingDirection.leftToRight,
+    this.keepScreenOn = true,
+  });
+
+  ReaderPreferences copyWith({
+    ReadingDirection? direction,
+    bool? keepScreenOn,
+  }) {
+    return ReaderPreferences(
+      direction: direction ?? this.direction,
+      keepScreenOn: keepScreenOn ?? this.keepScreenOn,
     );
   }
 }
@@ -108,4 +144,50 @@ final libraryViewModeProvider = Provider<LibraryViewMode>((ref) {
 
 final librarySortOptionProvider = Provider<SortOption>((ref) {
   return ref.watch(preferencesNotifierProvider).sortOption;
+});
+
+// Reader Preferences
+final readerPreferencesNotifierProvider =
+    StateNotifierProvider<ReaderPreferencesNotifier, ReaderPreferences>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return ReaderPreferencesNotifier(prefs);
+});
+
+class ReaderPreferencesNotifier extends StateNotifier<ReaderPreferences> {
+  final SharedPreferences _prefs;
+
+  ReaderPreferencesNotifier(this._prefs) : super(const ReaderPreferences()) {
+    _loadPreferences();
+  }
+
+  void _loadPreferences() {
+    final directionStr = _prefs.getString(AppConstants.prefReadingDirection);
+    final keepScreenOn = _prefs.getBool(AppConstants.prefKeepScreenOn) ?? true;
+
+    state = ReaderPreferences(
+      direction: ReadingDirection.values.firstWhere(
+        (e) => e.name == directionStr,
+        orElse: () => ReadingDirection.leftToRight,
+      ),
+      keepScreenOn: keepScreenOn,
+    );
+  }
+
+  Future<void> setReadingDirection(ReadingDirection direction) async {
+    await _prefs.setString(AppConstants.prefReadingDirection, direction.name);
+    state = state.copyWith(direction: direction);
+  }
+
+  Future<void> setKeepScreenOn(bool value) async {
+    await _prefs.setBool(AppConstants.prefKeepScreenOn, value);
+    state = state.copyWith(keepScreenOn: value);
+  }
+}
+
+final readingDirectionProvider = Provider<ReadingDirection>((ref) {
+  return ref.watch(readerPreferencesNotifierProvider).direction;
+});
+
+final keepScreenOnProvider = Provider<bool>((ref) {
+  return ref.watch(readerPreferencesNotifierProvider).keepScreenOn;
 });

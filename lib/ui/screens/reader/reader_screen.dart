@@ -77,7 +77,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.white, size: 48),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.white,
+                      size: 48,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       readerState.error!,
@@ -106,14 +110,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
             // Controls Overlay
             if (readerState.showControls)
-              ReaderControls(
-                title: widget.book.title,
-                currentPage: readerState.currentPage,
-                totalPages: readerState.totalPages,
-                onBack: _handleBack,
-                onPageChanged: (page) {
-                  ref.read(readerNotifierProvider.notifier).goToPage(page);
-                },
+              Positioned.fill(
+                child: ReaderControls(
+                  title: widget.book.title,
+                  currentPage: readerState.currentPage,
+                  totalPages: readerState.totalPages,
+                  onBack: _handleBack,
+                  onTap: () {
+                    ref.read(readerNotifierProvider.notifier).toggleControls();
+                  },
+                  onPageChanged: (page) {
+                    ref.read(readerNotifierProvider.notifier).goToPage(page);
+                  },
+                ),
               ),
           ],
         ),
