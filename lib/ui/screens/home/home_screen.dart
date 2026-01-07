@@ -30,6 +30,11 @@ class HomeScreen extends ConsumerWidget {
         title: const Text(AppConstants.appName),
         actions: [
           IconButton(
+            icon: const Icon(Icons.cloud),
+            tooltip: 'WebDAV 서버',
+            onPressed: () => context.push('/servers'),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
               // TODO: Navigate to settings

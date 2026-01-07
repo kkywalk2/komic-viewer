@@ -28,12 +28,12 @@ Flutter 기반 만화책 뷰어 앱. 상세 스펙은 `comic_reader_spec_ko.md` 
 - [x] 스켈레톤/쉬머 효과
 - [ ] 썸네일 생성 및 캐싱 (자동 커버 추출은 3단계에서 개선 예정)
 
-### 3단계: WebDAV 연동
-- [ ] 서버 설정 CRUD
-- [ ] 보안 자격 증명 저장
-- [ ] WebDAV 클라이언트 연동
-- [ ] 디렉토리 브라우저 화면
-- [ ] 파일 다운로드 및 캐싱
+### 3단계: WebDAV 연동 (완료)
+- [x] 서버 설정 CRUD
+- [x] 보안 자격 증명 저장
+- [x] WebDAV 클라이언트 연동
+- [x] 디렉토리 브라우저 화면
+- [x] 파일 다운로드 및 캐싱
 
 ### 4단계: 설정 & 다듬기
 - [ ] 설정 화면
@@ -47,7 +47,10 @@ lib/
 ├── main.dart
 ├── app.dart
 ├── core/
-│   ├── constants/app_constants.dart
+│   ├── constants/
+│   │   ├── app_constants.dart
+│   │   └── storage_keys.dart
+│   ├── exceptions/app_exceptions.dart
 │   └── utils/
 │       ├── natural_sort.dart
 │       ├── hash_utils.dart
@@ -56,35 +59,54 @@ lib/
 │   ├── models/
 │   │   ├── comic_book.dart
 │   │   ├── comic_page.dart
+│   │   ├── download_task.dart
 │   │   ├── reading_progress.dart
-│   │   └── server_config.dart
+│   │   ├── server_config.dart
+│   │   └── webdav_item.dart
 │   ├── repositories/
 │   │   ├── comic_repository.dart
-│   │   └── reading_progress_repository.dart
-│   └── sources/local/
-│       ├── database_helper.dart
-│       ├── archive_extractor.dart
-│       └── local_file_source.dart
+│   │   ├── reading_progress_repository.dart
+│   │   └── server_config_repository.dart
+│   └── sources/
+│       ├── local/
+│       │   ├── database_helper.dart
+│       │   ├── archive_extractor.dart
+│       │   └── local_file_source.dart
+│       └── remote/
+│           └── webdav_source.dart
+├── services/
+│   ├── download_manager.dart
+│   └── secure_storage_service.dart
 ├── providers/
 │   ├── library_provider.dart
-│   ├── preferences_provider.dart    # NEW: 뷰 모드/정렬 설정
+│   ├── preferences_provider.dart
 │   ├── reader_provider.dart
-│   └── reading_progress_provider.dart
+│   ├── reading_progress_provider.dart
+│   └── webdav_provider.dart
 └── ui/
     ├── screens/
     │   ├── home/
     │   │   ├── home_screen.dart
     │   │   └── widgets/
-    │   │       ├── comic_list_item.dart        # NEW: 리스트 뷰 아이템
+    │   │       ├── comic_list_item.dart
     │   │       ├── continue_reading_section.dart
-    │   │       ├── empty_library_state.dart    # NEW: 빈 상태 UI
-    │   │       └── library_header.dart         # NEW: 헤더 (정렬/뷰 토글)
-    │   └── reader/
-    │       ├── reader_screen.dart
+    │   │       ├── empty_library_state.dart
+    │   │       └── library_header.dart
+    │   ├── reader/
+    │   │   ├── reader_screen.dart
+    │   │   └── widgets/
+    │   │       ├── page_view_reader.dart
+    │   │       └── reader_controls.dart
+    │   └── webdav/
+    │       ├── browser_screen.dart
+    │       ├── server_form_screen.dart
+    │       ├── server_list_screen.dart
     │       └── widgets/
-    │           ├── page_view_reader.dart
-    │           └── reader_controls.dart
-    ├── widgets/shimmer/                        # NEW: 쉬머 위젯
+    │           ├── browser_shimmer.dart
+    │           ├── download_progress_dialog.dart
+    │           ├── empty_browser_state.dart
+    │           └── webdav_item_tile.dart
+    ├── widgets/shimmer/
     │   ├── library_shimmer.dart
     │   ├── shimmer_continue_reading.dart
     │   ├── shimmer_grid_item.dart

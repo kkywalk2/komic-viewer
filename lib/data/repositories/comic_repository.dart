@@ -34,15 +34,19 @@ class ComicRepository {
     if (await _archiveExtractor.isCached(book.id)) {
       return _archiveExtractor.loadFromCache(book.id);
     }
-    return _archiveExtractor.extractArchive(book.path, book.id);
+    // Use localCachePath for WebDAV files, otherwise use path
+    final filePath = book.localCachePath ?? book.path;
+    return _archiveExtractor.extractArchive(filePath, book.id);
   }
 
   Future<ComicPage?> extractCover(ComicBook book) async {
-    return _archiveExtractor.extractFirstPage(book.path, book.id);
+    final filePath = book.localCachePath ?? book.path;
+    return _archiveExtractor.extractFirstPage(filePath, book.id);
   }
 
   Future<int> getPageCount(ComicBook book) async {
-    return _archiveExtractor.getPageCount(book.path);
+    final filePath = book.localCachePath ?? book.path;
+    return _archiveExtractor.getPageCount(filePath);
   }
 
   Future<void> deleteComic(ComicBook book) async {

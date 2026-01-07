@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:webdav_client/webdav_client.dart' as webdav;
 
 import '../../../core/constants/app_constants.dart';
@@ -11,17 +13,17 @@ class WebDavSource {
   late final webdav.Client _client;
 
   WebDavSource(this.server) {
+    // Handle self-signed certificates globally if needed
+    if (server.allowSelfSigned) {
+      HttpOverrides.global = _SelfSignedHttpOverrides();
+    }
+
     _client = webdav.newClient(
       server.url,
       user: server.username,
       password: server.password,
       debug: false,
     );
-
-    // Handle self-signed certificates
-    if (server.allowSelfSigned) {
-      _client.setVerify(false);
-    }
 
     // Set timeouts
     _client.setConnectTimeout(AppConstants.connectionTimeoutSeconds * 1000);
@@ -34,6 +36,7 @@ class WebDavSource {
       await _client.readDir(server.rootPath);
       return true;
     } catch (e) {
+      print(e.toString());
       return false;
     }
   }
@@ -63,25 +66,8 @@ class WebDavSource {
       });
 
       return items;
-    } on webdav.DioException catch (e) {
-      final statusCode = e.response?.statusCode;
-      if (statusCode == 401) {
-        throw AuthException('인증에 실패했습니다');
-      } else if (statusCode == 404) {
-        throw NotFoundException('경로를 찾을 수 없습니다: $path');
-      }
-      throw WebDavException('WebDAV 오류: ${e.message}', statusCode);
     } catch (e) {
-      final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('certificate') || errorStr.contains('ssl')) {
-        throw SSLException('SSL 인증서 오류');
-      }
-      if (errorStr.contains('connection') ||
-          errorStr.contains('socket') ||
-          errorStr.contains('network')) {
-        throw NetworkException('연결할 수 없습니다');
-      }
-      throw WebDavException('오류: $e');
+      _handleError(e, path);
     }
   }
 
@@ -96,10 +82,35 @@ class WebDavSource {
         localPath,
         onProgress: onProgress,
       );
-    } on webdav.DioException catch (e) {
-      throw WebDavException('다운로드 실패: ${e.message}');
     } catch (e) {
       throw WebDavException('다운로드 오류: $e');
     }
+  }
+
+  Never _handleError(Object e, String path) {
+    final errorStr = e.toString().toLowerCase();
+    if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
+      throw AuthException('인증에 실패했습니다');
+    } else if (errorStr.contains('404') || errorStr.contains('not found')) {
+      throw NotFoundException('경로를 찾을 수 없습니다: $path');
+    }
+    if (errorStr.contains('certificate') || errorStr.contains('ssl')) {
+      throw SSLException('SSL 인증서 오류');
+    }
+    if (errorStr.contains('connection') ||
+        errorStr.contains('socket') ||
+        errorStr.contains('network')) {
+      throw NetworkException('연결할 수 없습니다');
+    }
+    throw WebDavException('WebDAV 오류: $e');
+  }
+}
+
+class _SelfSignedHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
   }
 }
