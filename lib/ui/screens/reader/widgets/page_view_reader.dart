@@ -37,9 +37,14 @@ class _PageViewReaderState extends State<PageViewReader> {
   void didUpdateWidget(PageViewReader oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentPage != widget.currentPage) {
-      if (_pageController.hasClients) {
-        _pageController.jumpToPage(widget.currentPage);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          final currentControllerPage = _pageController.page?.round() ?? 0;
+          if (currentControllerPage != widget.currentPage) {
+            _pageController.jumpToPage(widget.currentPage);
+          }
+        }
+      });
     }
   }
 

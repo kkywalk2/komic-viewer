@@ -83,6 +83,7 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
 
   void goToPage(int page) {
     if (page < 0 || page >= state.totalPages) return;
+    if (page == state.currentPage) return;
     state = state.copyWith(currentPage: page);
     _saveProgress();
   }
