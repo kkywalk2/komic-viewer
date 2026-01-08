@@ -61,6 +61,7 @@ class ReadingProgressRepository {
         isFinished: isFinished,
         lastReadAt: now,
         coverPath: book.coverPath,
+        localCachePath: book.localCachePath ?? existing.localCachePath,
       );
 
       await db.update(
@@ -81,6 +82,7 @@ class ReadingProgressRepository {
       source: book.source,
       serverId: book.serverId,
       filePath: book.path,
+      localCachePath: book.localCachePath,
       currentPage: currentPage,
       totalPages: totalPages,
       isFinished: isFinished,

@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/file_utils.dart';
 import '../../../../data/models/comic_book.dart';
+import '../../../../providers/thumbnail_provider.dart';
 
-class ComicListItem extends StatelessWidget {
+class ComicListItem extends ConsumerWidget {
   final ComicBook comic;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -18,9 +20,10 @@ class ComicListItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final thumbnailAsync = ref.watch(thumbnailProvider(comic));
 
     return InkWell(
       onTap: onTap,
@@ -35,15 +38,29 @@ class ComicListItem extends StatelessWidget {
               child: SizedBox(
                 width: 60,
                 height: 80,
-                child: comic.coverPath != null
-                    ? Image.file(
-                        File(comic.coverPath!),
+                child: thumbnailAsync.when(
+                  data: (thumbnailPath) {
+                    if (thumbnailPath != null) {
+                      return Image.file(
+                        File(thumbnailPath),
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildPlaceholder(colorScheme);
-                        },
-                      )
-                    : _buildPlaceholder(colorScheme),
+                        errorBuilder: (_, __, ___) => _buildPlaceholder(colorScheme),
+                      );
+                    }
+                    return _buildPlaceholder(colorScheme);
+                  },
+                  loading: () => Container(
+                    color: colorScheme.surfaceContainerHighest,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+                  error: (_, __) => _buildPlaceholder(colorScheme),
+                ),
               ),
             ),
             const SizedBox(width: 16),

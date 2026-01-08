@@ -3,7 +3,7 @@ class AppConstants {
 
   static const String appName = '만화 리더';
   static const String dbName = 'comic_reader.db';
-  static const int dbVersion = 1;
+  static const int dbVersion = 2;
 
   static const int preloadAhead = 2;
   static const int preloadBehind = 2;

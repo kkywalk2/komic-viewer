@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../data/models/comic_book.dart';
 import '../../../../data/models/reading_progress.dart';
+import '../../../../providers/thumbnail_provider.dart';
 
 class ContinueReadingSection extends StatelessWidget {
   final List<ReadingProgress> progressList;
@@ -50,27 +52,30 @@ class ContinueReadingSection extends StatelessWidget {
   }
 }
 
-class _ContinueReadingItem extends StatelessWidget {
+class _ContinueReadingItem extends ConsumerWidget {
   final ReadingProgress progress;
 
   const _ContinueReadingItem({required this.progress});
 
+  ComicBook get _book => ComicBook(
+        id: progress.bookId,
+        title: progress.title,
+        path: progress.filePath,
+        source: progress.source,
+        serverId: progress.serverId,
+        localCachePath: progress.localCachePath,
+        coverPath: progress.coverPath,
+        addedAt: progress.createdAt,
+      );
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final progressPercent = (progress.progressPercent * 100).toInt();
+    final thumbnailAsync = ref.watch(thumbnailProvider(_book));
 
     return GestureDetector(
       onTap: () {
-        final book = ComicBook(
-          id: progress.bookId,
-          title: progress.title,
-          path: progress.filePath,
-          source: progress.source,
-          serverId: progress.serverId,
-          coverPath: progress.coverPath,
-          addedAt: progress.createdAt,
-        );
-        context.push('/reader', extra: book);
+        context.push('/reader', extra: _book);
       },
       child: SizedBox(
         width: 100,
@@ -86,15 +91,28 @@ class _ContinueReadingItem extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: progress.coverPath != null
-                        ? Image.file(
-                            File(progress.coverPath!),
+                    child: thumbnailAsync.when(
+                      data: (thumbnailPath) {
+                        if (thumbnailPath != null) {
+                          return Image.file(
+                            File(thumbnailPath),
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: double.infinity,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(context),
-                          )
-                        : _buildPlaceholder(context),
+                            errorBuilder: (_, __, ___) => _buildPlaceholder(context),
+                          );
+                        }
+                        return _buildPlaceholder(context);
+                      },
+                      loading: () => const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                      error: (_, __) => _buildPlaceholder(context),
+                    ),
                   ),
                   Positioned(
                     left: 0,

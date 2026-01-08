@@ -98,7 +98,11 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Handle future migrations here
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE reading_progress ADD COLUMN local_cache_path TEXT',
+      );
+    }
   }
 
   Future<void> close() async {

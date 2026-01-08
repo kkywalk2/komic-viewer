@@ -8,6 +8,7 @@ class ReadingProgress {
   final ComicSource source;
   final String? serverId;
   final String filePath;
+  final String? localCachePath;
   final int currentPage;
   final int totalPages;
   final bool isFinished;
@@ -22,6 +23,7 @@ class ReadingProgress {
     required this.source,
     this.serverId,
     required this.filePath,
+    this.localCachePath,
     required this.currentPage,
     required this.totalPages,
     this.isFinished = false,
@@ -42,6 +44,7 @@ class ReadingProgress {
     ComicSource? source,
     String? serverId,
     String? filePath,
+    String? localCachePath,
     int? currentPage,
     int? totalPages,
     bool? isFinished,
@@ -56,6 +59,7 @@ class ReadingProgress {
       source: source ?? this.source,
       serverId: serverId ?? this.serverId,
       filePath: filePath ?? this.filePath,
+      localCachePath: localCachePath ?? this.localCachePath,
       currentPage: currentPage ?? this.currentPage,
       totalPages: totalPages ?? this.totalPages,
       isFinished: isFinished ?? this.isFinished,
@@ -73,6 +77,7 @@ class ReadingProgress {
       'source': source.name,
       'server_id': serverId,
       'file_path': filePath,
+      'local_cache_path': localCachePath,
       'current_page': currentPage,
       'total_pages': totalPages,
       'is_finished': isFinished ? 1 : 0,
@@ -93,6 +98,7 @@ class ReadingProgress {
       ),
       serverId: map['server_id'] as String?,
       filePath: map['file_path'] as String,
+      localCachePath: map['local_cache_path'] as String?,
       currentPage: map['current_page'] as int,
       totalPages: map['total_pages'] as int,
       isFinished: (map['is_finished'] as int) == 1,
