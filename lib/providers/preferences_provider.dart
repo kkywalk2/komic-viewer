@@ -72,19 +72,23 @@ class LibraryPreferences {
 class ReaderPreferences {
   final ReadingDirection direction;
   final bool keepScreenOn;
+  final bool splitWidePages;
 
   const ReaderPreferences({
     this.direction = ReadingDirection.leftToRight,
     this.keepScreenOn = true,
+    this.splitWidePages = true,
   });
 
   ReaderPreferences copyWith({
     ReadingDirection? direction,
     bool? keepScreenOn,
+    bool? splitWidePages,
   }) {
     return ReaderPreferences(
       direction: direction ?? this.direction,
       keepScreenOn: keepScreenOn ?? this.keepScreenOn,
+      splitWidePages: splitWidePages ?? this.splitWidePages,
     );
   }
 }
@@ -163,6 +167,8 @@ class ReaderPreferencesNotifier extends StateNotifier<ReaderPreferences> {
   void _loadPreferences() {
     final directionStr = _prefs.getString(AppConstants.prefReadingDirection);
     final keepScreenOn = _prefs.getBool(AppConstants.prefKeepScreenOn) ?? true;
+    final splitWidePages =
+        _prefs.getBool(AppConstants.prefSplitWidePages) ?? true;
 
     state = ReaderPreferences(
       direction: ReadingDirection.values.firstWhere(
@@ -170,6 +176,7 @@ class ReaderPreferencesNotifier extends StateNotifier<ReaderPreferences> {
         orElse: () => ReadingDirection.leftToRight,
       ),
       keepScreenOn: keepScreenOn,
+      splitWidePages: splitWidePages,
     );
   }
 
@@ -182,6 +189,11 @@ class ReaderPreferencesNotifier extends StateNotifier<ReaderPreferences> {
     await _prefs.setBool(AppConstants.prefKeepScreenOn, value);
     state = state.copyWith(keepScreenOn: value);
   }
+
+  Future<void> setSplitWidePages(bool value) async {
+    await _prefs.setBool(AppConstants.prefSplitWidePages, value);
+    state = state.copyWith(splitWidePages: value);
+  }
 }
 
 final readingDirectionProvider = Provider<ReadingDirection>((ref) {
@@ -190,4 +202,8 @@ final readingDirectionProvider = Provider<ReadingDirection>((ref) {
 
 final keepScreenOnProvider = Provider<bool>((ref) {
   return ref.watch(readerPreferencesNotifierProvider).keepScreenOn;
+});
+
+final splitWidePagesProvider = Provider<bool>((ref) {
+  return ref.watch(readerPreferencesNotifierProvider).splitWidePages;
 });

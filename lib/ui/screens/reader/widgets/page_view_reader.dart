@@ -2,15 +2,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:photo_view/photo_view_gallery.dart';
 
-import '../../../../data/models/comic_page.dart';
+import '../../../../data/models/virtual_page.dart';
+import 'split_image_widget.dart';
 
 class PageViewReader extends StatefulWidget {
-  final List<ComicPage> pages;
+  final List<VirtualPage> pages;
   final int currentPage;
   final ValueChanged<int> onPageChanged;
   final VoidCallback onTap;
+  final bool reverse;
 
   const PageViewReader({
     super.key,
@@ -18,6 +19,7 @@ class PageViewReader extends StatefulWidget {
     required this.currentPage,
     required this.onPageChanged,
     required this.onTap,
+    this.reverse = false,
   });
 
   @override
@@ -56,30 +58,34 @@ class _PageViewReaderState extends State<PageViewReader> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: PhotoViewGallery.builder(
-        scrollPhysics: const BouncingScrollPhysics(),
-        pageController: _pageController,
-        itemCount: widget.pages.length,
-        onPageChanged: widget.onPageChanged,
-        builder: (context, index) {
-          final page = widget.pages[index];
-          return PhotoViewGalleryPageOptions(
+    return PageView.builder(
+      controller: _pageController,
+      reverse: widget.reverse,
+      itemCount: widget.pages.length,
+      onPageChanged: widget.onPageChanged,
+      itemBuilder: (context, index) {
+        final page = widget.pages[index];
+
+        if (page.isSplit) {
+          // 분할된 페이지
+          return SplitImageWidget(
+            page: page,
+            onTap: widget.onTap,
+          );
+        }
+
+        // 일반 페이지 (기존 PhotoView 사용)
+        return GestureDetector(
+          onTap: widget.onTap,
+          child: PhotoView(
             imageProvider: FileImage(File(page.path)),
             initialScale: PhotoViewComputedScale.contained,
             minScale: PhotoViewComputedScale.contained,
             maxScale: PhotoViewComputedScale.covered * 3,
-            heroAttributes: PhotoViewHeroAttributes(tag: page.path),
-          );
-        },
-        loadingBuilder: (context, event) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          );
-        },
-        backgroundDecoration: const BoxDecoration(color: Colors.black),
-      ),
+            backgroundDecoration: const BoxDecoration(color: Colors.black),
+          ),
+        );
+      },
     );
   }
 }

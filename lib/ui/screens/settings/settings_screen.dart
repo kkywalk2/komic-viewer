@@ -68,6 +68,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   .setKeepScreenOn(value);
             },
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.vertical_split),
+            title: const Text('페이지 분할'),
+            subtitle: const Text('가로가 긴 이미지를 자동으로 분할합니다'),
+            value: readerPrefs.splitWidePages,
+            onChanged: (value) {
+              ref
+                  .read(readerPreferencesNotifierProvider.notifier)
+                  .setSplitWidePages(value);
+            },
+          ),
           const Divider(),
 
           // WebDAV Section

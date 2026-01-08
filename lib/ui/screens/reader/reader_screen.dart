@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../data/models/comic_book.dart';
+import '../../../providers/preferences_provider.dart';
 import '../../../providers/reader_provider.dart';
 import '../../../providers/reading_progress_provider.dart';
 import 'widgets/page_view_reader.dart';
@@ -56,6 +57,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final readerState = ref.watch(readerNotifierProvider);
+    final readerPrefs = ref.watch(readerPreferencesNotifierProvider);
+
+    // 설정 변경 시 가상 페이지 갱신
+    ref.listen(readerPreferencesNotifierProvider, (previous, next) {
+      if (previous != null &&
+          (previous.splitWidePages != next.splitWidePages ||
+              previous.direction != next.direction)) {
+        ref.read(readerNotifierProvider.notifier).refreshVirtualPages();
+      }
+    });
 
     return PopScope(
       canPop: false,
@@ -96,9 +107,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                   ],
                 ),
               )
-            else if (readerState.pages.isNotEmpty)
+            else if (readerState.virtualPages.isNotEmpty)
               PageViewReader(
-                pages: readerState.pages,
+                pages: readerState.virtualPages,
                 currentPage: readerState.currentPage,
                 onPageChanged: (page) {
                   ref.read(readerNotifierProvider.notifier).goToPage(page);
@@ -106,6 +117,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 onTap: () {
                   ref.read(readerNotifierProvider.notifier).toggleControls();
                 },
+                reverse:
+                    readerPrefs.direction == ReadingDirection.rightToLeft,
               ),
 
             // Controls Overlay

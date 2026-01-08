@@ -19,6 +19,11 @@ class AppConstants {
   static const String prefSortOption = 'library_sort_option';
   static const String prefReadingDirection = 'reading_direction';
   static const String prefKeepScreenOn = 'keep_screen_on';
+  static const String prefSplitWidePages = 'split_wide_pages';
+
+  // Page split configuration
+  // 가로/세로 비율이 이 값보다 크면 분할 대상
+  static const double splitAspectRatioThreshold = 1.2;
 
   // Shimmer configuration
   static const int shimmerGridItemCount = 9;
