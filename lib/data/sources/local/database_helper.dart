@@ -42,6 +42,7 @@ class DatabaseHelper {
         source TEXT NOT NULL,
         server_id TEXT,
         file_path TEXT NOT NULL,
+        local_cache_path TEXT,
         current_page INTEGER NOT NULL DEFAULT 0,
         total_pages INTEGER NOT NULL DEFAULT 0,
         is_finished INTEGER NOT NULL DEFAULT 0,
@@ -98,11 +99,20 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (!await _hasColumn(db, 'reading_progress', 'local_cache_path')) {
       await db.execute(
         'ALTER TABLE reading_progress ADD COLUMN local_cache_path TEXT',
       );
     }
+  }
+
+  Future<bool> _hasColumn(
+    Database db,
+    String tableName,
+    String columnName,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($tableName)');
+    return columns.any((column) => column['name'] == columnName);
   }
 
   Future<void> close() async {

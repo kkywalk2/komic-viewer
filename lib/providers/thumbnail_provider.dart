@@ -4,16 +4,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/comic_book.dart';
 import '../services/thumbnail_service.dart';
 
-final thumbnailProvider =
-    FutureProvider.family<String?, ComicBook>((ref, book) async {
+final thumbnailProvider = FutureProvider.family<String?, ComicBook>((
+  ref,
+  book,
+) async {
   try {
-    debugPrint('ThumbnailProvider: Loading thumbnail for ${book.title} (${book.id})');
+    debugPrint(
+      'ThumbnailProvider: Loading thumbnail for ${book.title} (${book.id})',
+    );
     debugPrint('ThumbnailProvider: Book path: ${book.path}');
 
-    // First check if thumbnail exists
-    final existingPath = await ThumbnailService.instance.getThumbnailPath(book.id);
+    final existingPath = await ThumbnailService.instance.resolveThumbnailPath(
+      book,
+    );
     if (existingPath != null) {
-      debugPrint('ThumbnailProvider: Found existing thumbnail at $existingPath');
+      debugPrint(
+        'ThumbnailProvider: Found existing thumbnail at $existingPath',
+      );
       return existingPath;
     }
 

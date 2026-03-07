@@ -9,9 +9,12 @@ import '../core/constants/app_constants.dart';
 import '../data/models/comic_book.dart';
 import '../data/repositories/comic_repository.dart';
 import '../data/sources/local/database_helper.dart';
+import 'app_path_service.dart';
 
 class ThumbnailService {
   static ThumbnailService? _instance;
+  static const String _thumbnailExtension = '.png';
+  final _pathService = AppPathService.instance;
 
   ThumbnailService._();
 
@@ -21,8 +24,8 @@ class ThumbnailService {
   }
 
   Future<String> _getThumbnailDirectory() async {
-    final cacheDir = await getApplicationCacheDirectory();
-    final thumbnailDir = Directory(p.join(cacheDir.path, 'thumbnails'));
+    final appDir = await getApplicationSupportDirectory();
+    final thumbnailDir = Directory(p.join(appDir.path, 'thumbnails'));
     if (!await thumbnailDir.exists()) {
       await thumbnailDir.create(recursive: true);
     }
@@ -40,21 +43,36 @@ class ThumbnailService {
 
     if (results.isEmpty) return null;
 
-    final path = results.first['path'] as String;
-    if (await File(path).exists()) {
+    final storedPath = results.first['path'] as String;
+    final path = await _pathService.resolveManagedPath(storedPath);
+    if (path != null && await _isValidThumbnailPath(path)) {
       return path;
     }
+    await deleteThumbnail(bookId);
     return null;
+  }
+
+  Future<String?> resolveThumbnailPath(ComicBook book) async {
+    final coverPath = await _pathService.resolveManagedPath(book.coverPath);
+    if (coverPath != null && await _isValidImageFile(coverPath)) {
+      return coverPath;
+    }
+
+    return getThumbnailPath(book.id);
   }
 
   Future<String?> generateThumbnail(ComicBook book) async {
     try {
-      debugPrint('ThumbnailService: Starting thumbnail generation for ${book.id}');
+      debugPrint(
+        'ThumbnailService: Starting thumbnail generation for ${book.id}',
+      );
 
       // Check if thumbnail already exists
       final existingPath = await getThumbnailPath(book.id);
       if (existingPath != null) {
-        debugPrint('ThumbnailService: Thumbnail already exists at $existingPath');
+        debugPrint(
+          'ThumbnailService: Thumbnail already exists at $existingPath',
+        );
         return existingPath;
       }
 
@@ -69,19 +87,28 @@ class ThumbnailService {
 
       final sourceFile = File(firstPage.path);
       if (!await sourceFile.exists()) {
-        debugPrint('ThumbnailService: Source file does not exist: ${firstPage.path}');
+        debugPrint(
+          'ThumbnailService: Source file does not exist: ${firstPage.path}',
+        );
         return null;
       }
 
       // Generate thumbnail
       final thumbnailDir = await _getThumbnailDirectory();
-      final ext = p.extension(firstPage.path).toLowerCase();
-      final thumbnailPath = p.join(thumbnailDir, '${book.id}$ext');
-      debugPrint('ThumbnailService: Thumbnail path will be $thumbnailPath');
+      final fallbackExt = p.extension(firstPage.path).toLowerCase();
+      final pngThumbnailPath = p.join(
+        thumbnailDir,
+        '${book.id}$_thumbnailExtension',
+      );
+      debugPrint(
+        'ThumbnailService: Preferred thumbnail path: $pngThumbnailPath',
+      );
 
       // Resize image
       final sourceBytes = await sourceFile.readAsBytes();
-      debugPrint('ThumbnailService: Source file size: ${sourceBytes.length} bytes');
+      debugPrint(
+        'ThumbnailService: Source file size: ${sourceBytes.length} bytes',
+      );
 
       final resizedBytes = await _resizeImage(
         sourceBytes,
@@ -89,18 +116,32 @@ class ThumbnailService {
         AppConstants.thumbnailMaxHeight,
       );
 
+      late final String thumbnailPath;
       if (resizedBytes != null) {
-        debugPrint('ThumbnailService: Resized image size: ${resizedBytes.length} bytes');
+        debugPrint(
+          'ThumbnailService: Resized image size: ${resizedBytes.length} bytes',
+        );
+        thumbnailPath = pngThumbnailPath;
         await File(thumbnailPath).writeAsBytes(resizedBytes);
       } else {
         debugPrint('ThumbnailService: Resize failed, copying original');
         // Fallback: just copy the original
+        thumbnailPath = p.join(thumbnailDir, '${book.id}$fallbackExt');
         await sourceFile.copy(thumbnailPath);
+      }
+
+      if (!await _isValidImageFile(thumbnailPath)) {
+        debugPrint(
+          'ThumbnailService: Generated thumbnail is invalid: $thumbnailPath',
+        );
+        return null;
       }
 
       // Save to database
       await _saveThumbnailMetadata(book.id, thumbnailPath);
-      debugPrint('ThumbnailService: Thumbnail saved successfully at $thumbnailPath');
+      debugPrint(
+        'ThumbnailService: Thumbnail saved successfully at $thumbnailPath',
+      );
 
       return thumbnailPath;
     } catch (e, stack) {
@@ -136,6 +177,10 @@ class ThumbnailService {
 
   Future<void> _saveThumbnailMetadata(String bookId, String path) async {
     final db = await DatabaseHelper.instance.database;
+    final managedPath = await _pathService.toManagedPath(path);
+    if (managedPath == null) {
+      throw Exception('썸네일 경로를 저장할 수 없습니다.');
+    }
 
     final existing = await db.query(
       'thumbnails',
@@ -146,14 +191,14 @@ class ThumbnailService {
     if (existing.isEmpty) {
       await db.insert('thumbnails', {
         'book_id': bookId,
-        'path': path,
+        'path': managedPath,
         'created_at': DateTime.now().millisecondsSinceEpoch,
       });
     } else {
       await db.update(
         'thumbnails',
         {
-          'path': path,
+          'path': managedPath,
           'created_at': DateTime.now().millisecondsSinceEpoch,
         },
         where: 'book_id = ?',
@@ -171,10 +216,13 @@ class ThumbnailService {
     );
 
     if (results.isNotEmpty) {
-      final path = results.first['path'] as String;
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
+      final storedPath = results.first['path'] as String;
+      final path = await _pathService.resolveManagedPath(storedPath);
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
       }
       await db.delete('thumbnails', where: 'book_id = ?', whereArgs: [bookId]);
     }
@@ -185,10 +233,13 @@ class ThumbnailService {
     final results = await db.query('thumbnails');
 
     for (final row in results) {
-      final path = row['path'] as String;
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
+      final storedPath = row['path'] as String;
+      final path = await _pathService.resolveManagedPath(storedPath);
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
       }
     }
 
@@ -207,5 +258,85 @@ class ThumbnailService {
       }
     }
     return totalSize;
+  }
+
+  Future<bool> _isValidThumbnailPath(String path) async {
+    final file = File(path);
+    if (!await file.exists()) return false;
+
+    try {
+      final bytes = await file.readAsBytes();
+      final actualExtension = _detectImageExtension(bytes);
+      final pathExtension = p.extension(path).toLowerCase();
+
+      if (actualExtension != null && actualExtension != pathExtension) {
+        debugPrint(
+          'ThumbnailService: Extension mismatch for $path '
+          '(path: $pathExtension, actual: $actualExtension)',
+        );
+        return false;
+      }
+
+      return _canDecodeImage(bytes);
+    } catch (e) {
+      debugPrint('ThumbnailService: Invalid thumbnail path $path: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _isValidImageFile(String path) async {
+    final file = File(path);
+    if (!await file.exists()) return false;
+
+    try {
+      final bytes = await file.readAsBytes();
+      return _canDecodeImage(bytes);
+    } catch (e) {
+      debugPrint('ThumbnailService: Invalid image file at $path: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _canDecodeImage(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    frame.image.dispose();
+    return true;
+  }
+
+  String? _detectImageExtension(Uint8List bytes) {
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A) {
+      return '.png';
+    }
+
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return '.jpg';
+    }
+
+    if (bytes.length >= 6) {
+      final header = String.fromCharCodes(bytes.sublist(0, 6));
+      if (header == 'GIF87a' || header == 'GIF89a') {
+        return '.gif';
+      }
+    }
+
+    if (bytes.length >= 12 &&
+        String.fromCharCodes(bytes.sublist(0, 4)) == 'RIFF' &&
+        String.fromCharCodes(bytes.sublist(8, 12)) == 'WEBP') {
+      return '.webp';
+    }
+
+    return null;
   }
 }

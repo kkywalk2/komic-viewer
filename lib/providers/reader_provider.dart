@@ -6,6 +6,7 @@ import '../data/models/virtual_page.dart';
 import '../data/repositories/comic_repository.dart';
 import '../data/repositories/reading_progress_repository.dart';
 import '../services/page_split_service.dart';
+import '../services/thumbnail_service.dart';
 import 'preferences_provider.dart';
 
 class ReaderState {
@@ -67,8 +68,8 @@ class ReaderState {
 
 final readerNotifierProvider =
     StateNotifierProvider<ReaderNotifier, ReaderState>((ref) {
-  return ReaderNotifier(ref);
-});
+      return ReaderNotifier(ref);
+    });
 
 class ReaderNotifier extends StateNotifier<ReaderState> {
   final Ref _ref;
@@ -77,11 +78,13 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
 
   final _comicRepository = ComicRepository.instance;
   final _progressRepository = ReadingProgressRepository.instance;
+  final _thumbnailService = ThumbnailService.instance;
 
   Future<void> openBook(ComicBook book) async {
     state = state.copyWith(isLoading: true, book: book, error: null);
 
     try {
+      final bookWithCover = await _ensureBookCover(book);
       final pages = await _comicRepository.extractPages(book);
 
       // 설정에서 분할 옵션 및 읽기 방향 가져오기
@@ -99,20 +102,20 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
       final originalPage = existingProgress?.currentPage ?? 0;
 
       // 원본 페이지를 가상 페이지 인덱스로 변환
-      final initialPage =
-          PageSplitService.originalToVirtual(virtualPages, originalPage);
+      final initialPage = PageSplitService.originalToVirtual(
+        virtualPages,
+        originalPage,
+      );
 
       state = state.copyWith(
+        book: bookWithCover,
         pages: pages,
         virtualPages: virtualPages,
         currentPage: initialPage.clamp(0, virtualPages.length - 1),
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -130,8 +133,10 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     );
 
     // 현재 원본 페이지 위치 유지
-    final newVirtualIndex =
-        PageSplitService.originalToVirtual(virtualPages, currentOriginal);
+    final newVirtualIndex = PageSplitService.originalToVirtual(
+      virtualPages,
+      currentOriginal,
+    );
 
     state = state.copyWith(
       virtualPages: virtualPages,
@@ -170,6 +175,10 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
     state = state.copyWith(showControls: false);
   }
 
+  Future<void> persistProgress() async {
+    await _saveProgress();
+  }
+
   Future<void> _saveProgress() async {
     final book = state.book;
     if (book == null) return;
@@ -185,5 +194,19 @@ class ReaderNotifier extends StateNotifier<ReaderState> {
   Future<void> closeBook() async {
     await _saveProgress();
     state = const ReaderState();
+  }
+
+  Future<ComicBook> _ensureBookCover(ComicBook book) async {
+    final existingPath = await _thumbnailService.resolveThumbnailPath(book);
+    if (existingPath != null) {
+      return book.copyWith(coverPath: existingPath);
+    }
+
+    final generatedPath = await _thumbnailService.generateThumbnail(book);
+    if (generatedPath != null) {
+      return book.copyWith(coverPath: generatedPath);
+    }
+
+    return book;
   }
 }

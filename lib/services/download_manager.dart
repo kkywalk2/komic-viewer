@@ -10,10 +10,12 @@ import '../data/models/server_config.dart';
 import '../data/models/webdav_item.dart';
 import '../data/sources/local/database_helper.dart';
 import '../data/sources/remote/webdav_source.dart';
+import 'app_path_service.dart';
 
 class DownloadManager {
   static DownloadManager? _instance;
   final _uuid = const Uuid();
+  final _pathService = AppPathService.instance;
   bool _isCancelled = false;
 
   DownloadManager._();
@@ -21,6 +23,15 @@ class DownloadManager {
   static DownloadManager get instance {
     _instance ??= DownloadManager._();
     return _instance!;
+  }
+
+  Future<String> _getDownloadDirectory() async {
+    final appDir = await getApplicationSupportDirectory();
+    final downloadDir = Directory(p.join(appDir.path, 'downloads'));
+    if (!await downloadDir.exists()) {
+      await downloadDir.create(recursive: true);
+    }
+    return downloadDir.path;
   }
 
   void cancelCurrentDownload() {
@@ -34,15 +45,10 @@ class DownloadManager {
   }) async {
     _isCancelled = false;
 
-    final cacheDir = await getApplicationCacheDirectory();
-    final downloadDir = Directory(p.join(cacheDir.path, 'downloads'));
-    if (!await downloadDir.exists()) {
-      await downloadDir.create(recursive: true);
-    }
-
     final bookId = generateBookId(ComicSource.webdav, server.id, item.path);
     final ext = p.extension(item.name);
-    final localPath = p.join(downloadDir.path, '$bookId$ext');
+    final downloadDir = await _getDownloadDirectory();
+    final localPath = p.join(downloadDir, '$bookId$ext');
 
     // Check if already cached
     final localFile = File(localPath);
@@ -81,6 +87,10 @@ class DownloadManager {
     required int fileSize,
   }) async {
     final db = await DatabaseHelper.instance.database;
+    final managedPath = await _pathService.toManagedPath(localPath);
+    if (managedPath == null) {
+      throw Exception('다운로드 경로를 저장할 수 없습니다.');
+    }
 
     // Check if entry exists
     final existing = await db.query(
@@ -94,7 +104,7 @@ class DownloadManager {
         'id': _uuid.v4(),
         'book_id': bookId,
         'remote_path': remotePath,
-        'local_path': localPath,
+        'local_path': managedPath,
         'file_size': fileSize,
         'downloaded_at': DateTime.now().millisecondsSinceEpoch,
       });
@@ -102,7 +112,7 @@ class DownloadManager {
       await db.update(
         'file_cache',
         {
-          'local_path': localPath,
+          'local_path': managedPath,
           'downloaded_at': DateTime.now().millisecondsSinceEpoch,
         },
         where: 'book_id = ?',
@@ -122,10 +132,12 @@ class DownloadManager {
 
     if (results.isEmpty) return null;
 
-    final localPath = results.first['local_path'] as String;
-    if (await File(localPath).exists()) {
+    final storedPath = results.first['local_path'] as String;
+    final localPath = await _pathService.resolveManagedPath(storedPath);
+    if (localPath != null && await File(localPath).exists()) {
       return localPath;
     }
+    await db.delete('file_cache', where: 'book_id = ?', whereArgs: [bookId]);
     return null;
   }
 
@@ -134,10 +146,13 @@ class DownloadManager {
     final results = await db.query('file_cache');
 
     for (final row in results) {
-      final localPath = row['local_path'] as String;
-      final file = File(localPath);
-      if (await file.exists()) {
-        await file.delete();
+      final storedPath = row['local_path'] as String;
+      final localPath = await _pathService.resolveManagedPath(storedPath);
+      if (localPath != null) {
+        final file = File(localPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
       }
     }
 

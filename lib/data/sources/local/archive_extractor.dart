@@ -9,6 +9,8 @@ import '../../models/comic_page.dart';
 
 class ArchiveExtractor {
   static ArchiveExtractor? _instance;
+  static const String _pageCacheDirName = 'comics';
+  static const String _coverCacheDirName = 'comic_covers';
 
   ArchiveExtractor._();
 
@@ -18,15 +20,26 @@ class ArchiveExtractor {
   }
 
   Future<String> _getCacheDirectory(String bookId) async {
+    return _getScopedCacheDirectory(_pageCacheDirName, bookId);
+  }
+
+  Future<String> _getCoverCacheDirectory(String bookId) async {
+    return _getScopedCacheDirectory(_coverCacheDirName, bookId);
+  }
+
+  Future<String> _getScopedCacheDirectory(String scope, String bookId) async {
     final cacheDir = await getApplicationCacheDirectory();
-    final comicsDir = Directory(p.join(cacheDir.path, 'comics', bookId));
+    final comicsDir = Directory(p.join(cacheDir.path, scope, bookId));
     if (!await comicsDir.exists()) {
       await comicsDir.create(recursive: true);
     }
     return comicsDir.path;
   }
 
-  Future<List<ComicPage>> extractArchive(String archivePath, String bookId) async {
+  Future<List<ComicPage>> extractArchive(
+    String archivePath,
+    String bookId,
+  ) async {
     final file = File(archivePath);
     if (!await file.exists()) {
       throw Exception('Archive file not found: $archivePath');
@@ -53,11 +66,9 @@ class ArchiveExtractor {
       final outputFile = File(outputPath);
       await outputFile.writeAsBytes(archiveFile.content as List<int>);
 
-      pages.add(ComicPage(
-        index: i,
-        path: outputPath,
-        originalName: archiveFile.name,
-      ));
+      pages.add(
+        ComicPage(index: i, path: outputPath, originalName: archiveFile.name),
+      );
     }
 
     return pages;
@@ -83,18 +94,14 @@ class ArchiveExtractor {
     imageFiles.sortNatural((f) => f.name);
 
     final firstFile = imageFiles.first;
-    final cacheDir = await _getCacheDirectory(bookId);
+    final cacheDir = await _getCoverCacheDirectory(bookId);
     final ext = p.extension(firstFile.name).toLowerCase();
     final outputPath = p.join(cacheDir, '0000$ext');
 
     final outputFile = File(outputPath);
     await outputFile.writeAsBytes(firstFile.content as List<int>);
 
-    return ComicPage(
-      index: 0,
-      path: outputPath,
-      originalName: firstFile.name,
-    );
+    return ComicPage(index: 0, path: outputPath, originalName: firstFile.name);
   }
 
   Future<int> getPageCount(String archivePath) async {
@@ -112,22 +119,23 @@ class ArchiveExtractor {
   }
 
   Future<void> clearCache(String bookId) async {
-    final cacheDir = await getApplicationCacheDirectory();
-    final bookCacheDir = Directory(p.join(cacheDir.path, 'comics', bookId));
-    if (await bookCacheDir.exists()) {
-      await bookCacheDir.delete(recursive: true);
-    }
+    await clearPageCache(bookId);
+    await clearCoverCache(bookId);
   }
 
   Future<bool> isCached(String bookId) async {
     final cacheDir = await getApplicationCacheDirectory();
-    final bookCacheDir = Directory(p.join(cacheDir.path, 'comics', bookId));
+    final bookCacheDir = Directory(
+      p.join(cacheDir.path, _pageCacheDirName, bookId),
+    );
     return await bookCacheDir.exists();
   }
 
   Future<List<ComicPage>> loadFromCache(String bookId) async {
     final cacheDir = await getApplicationCacheDirectory();
-    final bookCacheDir = Directory(p.join(cacheDir.path, 'comics', bookId));
+    final bookCacheDir = Directory(
+      p.join(cacheDir.path, _pageCacheDirName, bookId),
+    );
 
     if (!await bookCacheDir.exists()) {
       return [];
@@ -139,10 +147,9 @@ class ArchiveExtractor {
         .where((f) => isImageFile(f.path))
         .toList();
 
-    imageFiles.sort((a, b) => naturalCompare(
-      p.basename(a.path),
-      p.basename(b.path),
-    ));
+    imageFiles.sort(
+      (a, b) => naturalCompare(p.basename(a.path), p.basename(b.path)),
+    );
 
     return imageFiles.asMap().entries.map((entry) {
       return ComicPage(
@@ -151,5 +158,21 @@ class ArchiveExtractor {
         originalName: p.basename(entry.value.path),
       );
     }).toList();
+  }
+
+  Future<void> clearPageCache(String bookId) async {
+    await _deleteScopedCacheDirectory(_pageCacheDirName, bookId);
+  }
+
+  Future<void> clearCoverCache(String bookId) async {
+    await _deleteScopedCacheDirectory(_coverCacheDirName, bookId);
+  }
+
+  Future<void> _deleteScopedCacheDirectory(String scope, String bookId) async {
+    final cacheDir = await getApplicationCacheDirectory();
+    final bookCacheDir = Directory(p.join(cacheDir.path, scope, bookId));
+    if (await bookCacheDir.exists()) {
+      await bookCacheDir.delete(recursive: true);
+    }
   }
 }

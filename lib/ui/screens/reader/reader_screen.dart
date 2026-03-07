@@ -19,10 +19,14 @@ class ReaderScreen extends ConsumerStatefulWidget {
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends ConsumerState<ReaderScreen> {
+class _ReaderScreenState extends ConsumerState<ReaderScreen>
+    with WidgetsBindingObserver {
+  bool _isSavingOnLifecycle = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _enterFullScreen();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(readerNotifierProvider.notifier).openBook(widget.book);
@@ -31,8 +35,19 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _exitFullScreen();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _persistProgressForLifecycle();
+    }
   }
 
   void _enterFullScreen() {
@@ -51,6 +66,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     ref.read(continueReadingNotifierProvider.notifier).load();
     if (mounted) {
       context.pop();
+    }
+  }
+
+  Future<void> _persistProgressForLifecycle() async {
+    if (_isSavingOnLifecycle) return;
+
+    _isSavingOnLifecycle = true;
+    try {
+      await ref.read(readerNotifierProvider.notifier).persistProgress();
+    } finally {
+      _isSavingOnLifecycle = false;
     }
   }
 
@@ -117,8 +143,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 onTap: () {
                   ref.read(readerNotifierProvider.notifier).toggleControls();
                 },
-                reverse:
-                    readerPrefs.direction == ReadingDirection.rightToLeft,
+                reverse: readerPrefs.direction == ReadingDirection.rightToLeft,
               ),
 
             // Controls Overlay

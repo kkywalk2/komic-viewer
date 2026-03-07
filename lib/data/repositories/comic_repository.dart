@@ -13,8 +13,8 @@ class ComicRepository {
   final ArchiveExtractor _archiveExtractor;
 
   ComicRepository._()
-      : _localFileSource = LocalFileSource.instance,
-        _archiveExtractor = ArchiveExtractor.instance;
+    : _localFileSource = LocalFileSource.instance,
+      _archiveExtractor = ArchiveExtractor.instance;
 
   static ComicRepository get instance {
     _instance ??= ComicRepository._();
@@ -34,14 +34,22 @@ class ComicRepository {
   }
 
   Future<List<ComicPage>> extractPages(ComicBook book) async {
-    if (await _archiveExtractor.isCached(book.id)) {
-      return _archiveExtractor.loadFromCache(book.id);
-    }
-    // Use localCachePath for WebDAV files, otherwise use path
     final filePath = await _getLocalFilePath(book);
     if (filePath == null) {
       throw Exception('캐시된 파일을 찾을 수 없습니다. 다시 다운로드해주세요.');
     }
+
+    if (await _archiveExtractor.isCached(book.id)) {
+      final cachedPages = await _archiveExtractor.loadFromCache(book.id);
+      final pageCount = await _archiveExtractor.getPageCount(filePath);
+
+      if (cachedPages.length == pageCount) {
+        return cachedPages;
+      }
+
+      await _archiveExtractor.clearPageCache(book.id);
+    }
+
     return _archiveExtractor.extractArchive(filePath, book.id);
   }
 
